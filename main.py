@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# для MVP
+
+# Запускає pipline
+
+# Схема взаємодії класів MVP:
+# main.py -> pipeline.py -> irbis.py -> http.py + irbis_parser.py -> models.py -> jsonl.py
+
+
 # Завдання:
 # 1) Збери список книг за адресою:
 # https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe?C21COM=S&I21DBN=KNIGI&P21DBN=KNIGI&S21FMT=fullw&S21ALL=(%3C.%3EG%3D2025$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN=1&S21REF=10&S21CNR=20
