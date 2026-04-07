@@ -61,18 +61,41 @@ def fetch(url, timeout=10):
     return html  # Успішний запит, - Повертаємо контент
 
 
+def op_file_write(file_path, content):
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    print(f'Content saved to {file_path}')
+
+
+# Читаємо файл замість запиту до сервера
+def op_file_read(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
 def main():
     # "https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe?C21COM=F&I21DBN=ELIB&P21DBN=ELIB&S21FMT=&S21ALL=&Z21ID="
+    url_irbis = 'https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe'
     year = 2025
     S21STN = 141 # Сторінка, з якої починаємо збір даних (1 - перша сторінка)
     S21REF = 10 # Кількість результатів на сторінці (10 - за замовчуванням)
     S21CNR = 20 # Кількість результатів на сторінці (20 - за замовчуванням)
     P21DBN = 'KNIGI' # База даних, яку ми хочемо парсити (KNIGI - книги)
     C21COM = 'S' # Команда для пошуку в БД (S - пошук) /
-    url_irbis = 'https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe'
-    url_irbis_with_params = f'{url_irbis}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+    
+    irbis_dict = {
+        'year': year,
+        'S21STN': S21STN,
+        'S21REF': S21REF,
+        'S21CNR': S21CNR,
+        'P21DBN': P21DBN,
+        'C21COM': C21COM,
+        'url_irbis_with_params': f'{url_irbis}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+    }
+    
     
     # https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe?C21COM=S&I21DBN=KNIGI&P21DBN=KNIGI&S21FMT=fullw&S21ALL=(%3C.%3EG%3D2025$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN=141&S21REF=10&S21CNR=20
+
 
     # body > table > tbody > tr:nth-child(4) > td.main_content > table:nth-child(5) > tbody
 
@@ -81,16 +104,20 @@ def main():
 
     # body > table > tbody > tr:nth-child(4) > td.main_content > table:nth-child(5) > tbody > tr:nth-child(4)
 
-    response = requests.get(url_irbis_with_params)
+    response = requests.get(irbis_dict['url_irbis_with_params'])
 
     file_path = 'irbis_page.html'
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(response.text)
-    print('HTML content saved to irbis_page.html')
 
-    # Читаємо файл замість запиту до сервера
-    with open(file_path, 'r', encoding='utf-8') as f:
-        html_content = f.read()
+        # with open(file_path, 'w', encoding='utf-8') as f:
+        #     f.write(response.text)
+        # print('HTML content saved to irbis_page.html')
+    op_file_write(file_path, response.text)
+
+    # # Читаємо файл замість запиту до сервера
+    # with open(file_path, 'r', encoding='utf-8') as f:
+    #     html_content = f.read()
+
+    html_content = op_file_read(file_path)
 
     tree = html.fromstring(html_content)
     # print(f'HTML: {response.text}')
