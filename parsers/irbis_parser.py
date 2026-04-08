@@ -102,50 +102,17 @@ def main():
 
     if not file_path.exists(): # Якщо ф-л не існує , виконуємо запит до сервера і зберігаємо результат до файлу
         response = requests.get(irbis_dict['url_irbis_with_params'])
-            # with open(file_path, 'w', encoding='utf-8') as f:
-            #     f.write(response.text)
-            # print('HTML content saved to irbis_page.html')
         op_file_write(file_path, response.text)
-
-    # # Читаємо файл замість запиту до сервера
-    # with open(file_path, 'r', encoding='utf-8') as f:
-    #     html_content = f.read()
 
     html_content = op_file_read(file_path)
 
     # ------------  Parsing block  ----------------------
     
     tree = html.fromstring(html_content)
-    # що містить tree? - це об'єкт, який представляє структуру HTML-документа у вигляді дерева.
-    # Він дозволяє виконувати різні операції над HTML-структурою,
-    # такі як пошук елементів за допомогою XPath, отримання тексту з елементів,
-    # зміна структури документа тощо. У цьому випадку ми використовуємо tree для виконання XPath-запиту
-    # і отримання інформації про книги з HTML-сторінки.     
-    
     # print(f'HTML: {response.text}')
     print(f'Tree: {tree}')
 
-    # Використовуємо XPath для отримання потрібного блоку з інформацією про книги
-    
-        # body > table > tbody > tr:nth-child(4) > td.main_content > table:nth-child(5) > tbody
-
-        # !!! Наче як унікальний way!)
-        # /html/body/table/tbody/tr[4]/td[2]/table[4]/tbody
-
-        # body > table > tbody > tr:nth-child(4) > td.main_content > table:nth-child(5) > tbody > tr:nth-child(4)
-
-    # xpath_query = '/html/body/table/tbody/tr[4]/td[2]/table[4]/tbody/tr'  # Приклад XPath для отримання рядків з інформацією про книги  
-    # xpath_query = '/html/body/table/tbody/tr[4]/td[2]/table[4]/tbody'  # Приклад XPath для отримання рядків з інформацією про книги  
-    # xpath_query = '/html/body/table'  # Приклад XPath для отримання рядків з інформацією про книги  
-    xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # Приклад XPath для отримання рядків з інформацією про книги  
-    # xpath_query = f'//table[contains(., "{S21STN}.")]'  # Приклад XPath для отримання рядків з інформацією про книги  
-    # UnboundLocalError: cannot access local variable 'S21STN' where it is not associated with a value
-    # Як це "не існує", - коли я створив змінну S21STN перед цим кодом?
-
-    # Тут:
-    # xpath_query = '/html/body/table/tr[4]/td[2]/table[4]'
-    # Як знайти усі tr з пар-ром "width=100%" всередині цього <table>?
-    # xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'
+    xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
     
     # Отримуємо елемент (xpath повертає список)
     books_info = tree.xpath(xpath_query)
@@ -155,18 +122,17 @@ def main():
     for book in books_info:
         # print(html.tostring(book, encoding='unicode'))  # Виводимо HTML-код кожного елемента з інформацією про книги
         op_file_write(file_path_2, html.tostring(book, encoding='unicode'))  # Зберігаємо отриманий блок з інформацією про книги у файл    
-    # op_file_write(file_path_2, books_info)  # Зберігаємо отриманий блок з інформацією про книги у файл    
-    
-    # op_file_write(file_path_2, html.tostring(books_info[0], encoding='unicode'))  # Зберігаємо отриманий блок з інформацією про книги у файл    
 
-    if books_info:
-        tbody = books_info[0]  # Отримуємо перший елемент tbody
-        # Приклад отримання тексту всіх комірок всередині цього tbody
-        data = [td.text_content().strip() for td in tbody.xpath('.//td')]
-        print(data)
-        # op_file_write(file_path_2, data)
+    # # Нащо тоді мені цей код, якщо я вже зберіг потрбні дані кодом вище?
+    # # - Ти правий, цей код може бути зайвим, якщо ти вже зберіг потрібні дані у файл.
+    # # Його можна видалити або закоментувати, якщо він не потрібен для подальшої обробки даних.     
+    # if books_info:
+    #     tbody = books_info[0]  # Отримуємо перший елемент tbody
+    #     # Приклад отримання тексту всіх комірок всередині цього tbody
+    #     data = [td.text_content().strip() for td in tbody.xpath('.//td')]
+    #     print(data)
+    #     # op_file_write(file_path_2, data)
 
 
-# для дем-ції прикладу викор-ня ф-цій цього ф-лу
 if __name__ == '__main__':
     main()
