@@ -22,6 +22,7 @@
 
 from gettext import find
 
+import json
 import requests, socket, time
 from bs4 import BeautifulSoup
 from lxml import html
@@ -35,6 +36,17 @@ def is_connected():    # Для перевірки доступности інт
         return True
     except OSError:
         return False
+
+
+def normalize_element_text(node):
+    """Return normalized text for an element, with all nested text joined cleanly."""
+    if node is None:
+        return ''
+    return ' '.join(text.strip() for text in node.xpath('.//text()') if text.strip())
+
+
+def contains_ab(text):
+    return text is not None and 'аб' in text.lower()
 
 
 # ------------- Parsing logic ---------------------------------
@@ -66,7 +78,36 @@ def fetch(url, timeout=10):
 def op_file_write(file_path, content):
     with open(file_path, 'a', encoding='utf-8') as f:
         f.write(content)
+        # А якщо content - це список або словник? Чи потрібно його перетворити в рядок перед записом до файлу?
+        # - Так, якщо content - це список або словник, його потрібно перетворити в рядок перед записом до файлу.
+        # Для цього можна використовувати функцію json.dumps для словників або списків,
+        # щоб перетворити їх у формат JSON, який є зручним для зберігання структурованих даних у файлах.
+        # Ось як це можна зробити:    
+        # 
+        # import json
+        # if isinstance(content, (list, dict)):
+        #     content = json.dumps(content, ensure_ascii=False, indent=4)  # Перетворюємо список або словник у формат JSON
+        
     print(f'Content append to {file_path}')
+    
+    # яка різниця між
+    # content = json.dumps(content = json.dumps)
+    #     та
+    # json.dump(json_content, file_path, ensure_ascii=False, indent=4)
+    # - Різниця між цими двома підходами полягає в тому, що
+    # json.dumps перетворює Python-об'єкт у рядок у форматі JSON,
+    # тоді як json.dump записує Python-об'єкт безпосередньо у файл у форматі JSON.
+    # Використання json.dumps дозволяє отримати рядок у форматі JSON,
+    # який можна зберегти у змінну або вивести на екран,
+    # тоді як json.dump автоматично записує об'єкт у файл, не повертаючи його як рядок.  
+    
+    # що краще тут використовувати - json.dumps чи json.dump?
+    # - Якщо ти хочеш отримати рядок у форматі JSON, який можна зберегти у змінну або вивести на екран,
+    # то краще використовувати json.dumps.
+    # Якщо ж ти хочеш безпосередньо записати Python-об'єкт у файл у форматі JSON,
+    # то краще використовувати json.dump, оскільки він автоматично обробляє відкриття файлу і запис даних у нього.    
+
+
     
 
 def op_json_file_write(file_path, json_content):
@@ -85,6 +126,8 @@ def main():
     # ------------  Init block  ----------------------
     file_path = Path('irbis_page.html')
     url_irbis = 'https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe'
+    # Сайт бібліотеки:
+    # url_irbis = 'https://library.kr.ua'
     
     year = 2025
     S21STN = 141 # Сторінка, з якої починаємо збір даних (1 - перша сторінка)
@@ -113,6 +156,11 @@ def main():
     # ------------  Parsing block  ----------------------
     
     tree = html.fromstring(html_content)
+
+    # Видаляємо всі елементи `<style>`
+    for style in tree.xpath('//style'):
+        style.getparent().remove(style)
+
     xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
     books_info = tree.xpath(xpath_query)  # Отримуємо елемент (xpath повертає список)
     
@@ -120,29 +168,71 @@ def main():
     file_path_2 = 'irbis_data.html'
     file_path_3 = 'irbis_data.json'
     
-    books_dict = {
-        'num_book': None,
-        'lib_code_book': None,
-        'author': None,
-        'title_and_detail_description': None,
-        'check_ab': None
-    }
+    books = []
 
     for book in books_info:
-        # print(f'book: {html.tostring(book, encoding='unicode')}') # Виводимо HTML-код кожного елемента (рядка з інформацією про книгу)
-        num_book = './td[1]/b/text()'  # отримання номера книги
-        lib_code_book = './td[2]/b/text()'  # отримання коду бібліотеки книги
+        num_book = book.xpath('string(.//td[1]/b)').strip()
+        lib_code_book = book.xpath('string(.//td[2]/b)').strip()
         
         # Напиши код, як у 2-му td слід перерахувати усі вкладені <dd>,
         # які містять інформацію про книгу (назва, автор, рік видання і т.д.)
         # і зберегти їх у змінну (наприклад, book_info)
         # book_info = './td[2]/dd/text()'  # отримання інформації про книгу (назва, автор, рік видання і т.д.) з усіх вкладених <dd> у 2-му td    
-        dds = book.xpath('./td[2]/dd')  # отримання усіх вкладених <dd> у 2-му td
-        book_info = [dd.text_content().strip() for dd in dds if dd.text_content().strip()]  # отримання текстового вмісту кожного <dd> і збереження його у список (видаляємо порожні рядки)
         
-        author = book_info[0] if len(book_info) > 0 else 'Unknown Author'  # отримання автора (перший елемент списку book_info)
-        title_and_detail_description = book_info[1] if len(book_info) > 1 else 'Unknown Title and Description'  # отримання назви (другий елемент списку book_info)
-        check_ab = book_info[2] if (len(book_info) > 2 and 'аб' in book_info[2]) else 'Not on the Subscription department'  # перевірка наявности книги в абонементі (третій елемент списку book_info) 
+        dds = book.xpath('./td[2]/dd')  # отримання усіх вкладених <dd> у 2-му td
+        # file_path_4 = 'dds.json'
+        # op_json_file_write(file_path_4,dds)
+        
+        # > TypeError: Object of type HtmlElement is not JSON serializable
+        #  - Це означає, що об'єкт типу HtmlElement не може бути серіалізований у формат JSON.
+        # Як же тоді зберегти цей список dds до файлу у форматі JSON, якщо він містить об'єкти типу HtmlElement,
+        # які не можуть бути безпосередньо серіалізовані у формат JSON?
+        # - Щоб зберегти список dds до файлу у форматі JSON, ти можеш
+        # спочатку перетворити кожен об'єкт HtmlElement у рядок,
+        # використовуючи метод .text_content() для отримання текстового вмісту кожного елемента <dd>.  
+
+        # чи можна записати весь список dds до файлу, а потім прочитати його і отримати текстовий вміст кожного <dd>?
+        # - Так, ти можеш записати весь список dds до файлу, а потім прочитати його і отримати текстовий вміст кожного <dd>.
+        # Для цього ти можеш використовувати функцію op_file_write для запису списку dds до файлу,
+        # а потім використовувати функцію op_file_read для читання цього файлу і отримання текстового вмісту кожного <dd>.
+        # Ось як це можна зробити:   
+
+        # як, та до якого формату ф-лу, записати список отриманих елементів <dd> до файлу,
+        # щоб потім можна було його прочитати і отримати текстовий вміст кожного <dd>?
+        # - Ти можеш записати список отриманих елементів <dd> до файлу у форматі JSON,
+        # використовуючи функцію op_json_file_write.
+        # Для цього тобі потрібно спочатку отримати текстовий вміст кожного <dd> і зберегти його у список,
+        # а потім записати цей список до файлу у форматі JSON. Ось як це можна зробити:.. як же? покажи код, будь ласка.
+
+
+        dd_texts = [normalize_element_text(dd) for dd in dds if normalize_element_text(dd)]
+        # для <b> <a>text</a> </b> - не повертає текст,
+        # а для <a> <b>text</b> </a> - повертає текст.
+        # Як повернути текст для <b> <a>text</a> </b> ?
+        # - Використовуй метод .text_content() для отримання текстового вмісту елемента, незалежно від його структури.        
+
+        author = dd_texts[0] if len(dd_texts) > 0 else None
+        detail_description = dd_texts[1] if len(dd_texts) > 1 else None
+        metadata = dd_texts[2] if len(dd_texts) > 2 else None
+        availability = next((text for text in dd_texts if contains_ab(text)), None)
+
+        book_record = {
+            'num_book': num_book or None,
+            'lib_code_book': lib_code_book or None,
+            'author': author,
+            'detail_description': detail_description,
+            'metadata': metadata,
+            'availability': availability,
+            'dd_texts': dd_texts
+        }
+
+        books.append(book_record)
+        # - Тому що для отримання назви та детального опису книги ми використовуємо другий елемент списку book_info (індекс 1),
+        # а не перший (індекс 0).
+        # Якщо ми перевіряємо len(book_info) > 0, то це означає, що в списку book_info є хоча б один елемент,
+        # але це не гарантує, що другий елемент (назва та детальний опис) існує.
+        # Тому ми перевіряємо len(book_info) > 1, щоб переконатися, що в списку book_info є принаймні два елементи,
+        # перш ніж намагатися отримати другий елемент (назву та детальний опис книги).
 
         # як краще зберегти до books_dict отримані дані про книгу?
         # Чи зберігати їх у вигляді словника, де ключами будуть назви полів
@@ -156,16 +246,8 @@ def main():
         # Словник може бути менш зручним для роботи з даними про книгу,
         # оскільки він не забезпечує такої ж структури і може бути менш інтуїтивно зрозумілим для розробників,
         # які звикли працювати з об'єктами.
-        books_dict['num_book'] = book.xpath(num_book)[0] if len(book.xpath(num_book)) > 0 else 'Unknown Number'  # отримання номера книги   
-        books_dict['lib_code_book'] = book.xpath(lib_code_book)[0] if len(book.xpath(lib_code_book)) > 0 else 'Unknown Library Code'  # отримання коду бібліотеки книги
-        books_dict['author'] = author
-        books_dict['title_and_detail_description'] = title_and_detail_description
-        books_dict['check_ab'] = check_ab
-
-        # print(f'book: {book.text_content()}')  # Виводимо текстовий вміст кожного елемента (рядка з інформацією про книгу)
-        # op_file_write(file_path_2, html.tostring(book, encoding='unicode'))  # Зберігаємо отриманий блок з інформацією про книги у файл    
-        # op_file_write(file_path_2, books_dict)  # Зберігаємо отриманий блок з інформацією про книги у файл    
-        op_json_file_write(file_path_3, books_dict)  # Зберігаємо отриманий блок з інформацією про книги у файл у форматі JSON
+    with open(file_path_3, 'w', encoding='utf-8') as f:
+        json.dump(books, f, ensure_ascii=False, indent=2)
 
     # # Нащо тоді мені цей код, якщо я вже зберіг потрбні дані кодом вище?
     # # - Ти правий, цей код може бути зайвим, якщо ти вже зберіг потрібні дані у файл.
