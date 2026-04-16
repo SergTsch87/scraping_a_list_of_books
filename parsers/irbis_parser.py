@@ -15,12 +15,15 @@
 # # - парсинг html-сторінки
 # # - формування Book
 
+    # Сайт бібліотеки:
+    # url_irbis = 'https://library.kr.ua'
+
 
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from gettext import find
+# from gettext import find
 
 import json
 import requests, socket, time
@@ -78,40 +81,12 @@ def fetch(url, timeout=10):
 def op_file_write(file_path, content):
     with open(file_path, 'a', encoding='utf-8') as f:
         f.write(content)
-        # А якщо content - це список або словник? Чи потрібно його перетворити в рядок перед записом до файлу?
-        # - Так, якщо content - це список або словник, його потрібно перетворити в рядок перед записом до файлу.
-        # Для цього можна використовувати функцію json.dumps для словників або списків,
-        # щоб перетворити їх у формат JSON, який є зручним для зберігання структурованих даних у файлах.
-        # Ось як це можна зробити:    
-        # 
-        # import json
-        # if isinstance(content, (list, dict)):
-        #     content = json.dumps(content, ensure_ascii=False, indent=4)  # Перетворюємо список або словник у формат JSON
         
     print(f'Content append to {file_path}')
     
-    # яка різниця між
-    # content = json.dumps(content = json.dumps)
-    #     та
-    # json.dump(json_content, file_path, ensure_ascii=False, indent=4)
-    # - Різниця між цими двома підходами полягає в тому, що
-    # json.dumps перетворює Python-об'єкт у рядок у форматі JSON,
-    # тоді як json.dump записує Python-об'єкт безпосередньо у файл у форматі JSON.
-    # Використання json.dumps дозволяє отримати рядок у форматі JSON,
-    # який можна зберегти у змінну або вивести на екран,
-    # тоді як json.dump автоматично записує об'єкт у файл, не повертаючи його як рядок.  
-    
-    # що краще тут використовувати - json.dumps чи json.dump?
-    # - Якщо ти хочеш отримати рядок у форматі JSON, який можна зберегти у змінну або вивести на екран,
-    # то краще використовувати json.dumps.
-    # Якщо ж ти хочеш безпосередньо записати Python-об'єкт у файл у форматі JSON,
-    # то краще використовувати json.dump, оскільки він автоматично обробляє відкриття файлу і запис даних у нього.    
-
-
-    
 
 def op_json_file_write(file_path, json_content):
-    import json
+    # import json
     with open(file_path , 'a', encoding='utf-8') as f:
         json.dump(json_content, f, ensure_ascii=False, indent=4)
 
@@ -122,28 +97,84 @@ def op_file_read(file_path):
         return f.read()
 
 
+# Вилучаємо зі сторінки усі:
+    # - тег з атр-том і пар-ром
+    # - тег з атр-том і без пар-ра
+    # - тег без атр-та
+def del_attr_wth_params(tree_xpath, tag, attr=None, param=None):
+    if attr is None and param is None:
+        xpath = f'//{tag}'
+    elif param is None:
+        xpath = f'//{tag}[@{attr}]'
+    else:
+        xpath = f'//{tag}[@{attr}="{param}"]'
+
+    for el in tree_xpath.xpath(xpath):
+        parent = el.getparent()
+        if parent is not None:
+            parent.remove(el)
+
+    # for param_tag in tree_xpath.xpath(f'//{tag}[@{attr}="{param}"]'):
+    #     param_tag.getparent().remove(param_tag)
+
+
+def create_tbody_to_html(tag, tree_xpath):
+    # Створіть wrapper-елемент <tbody>
+    # tag == 'tbody'
+    tbody = etree.Element(tag)
+
+    # Додайте усі tr з books_info до tbody
+    
+    # tree_xpath == books_info
+    for tr in tree_xpath:
+        tbody.append(tr)
+    
+    # Конвертуйте в HTML-рядок
+    html_string = etree.tostring(tbody, encoding='unicode', method='html')
+    return html_string
+
+
+# К-сть сторінок певного року
+def count_pages_of_year(count_docs, S21CNR):
+    count_iters, remaind = divmod(count_docs, S21CNR)
+    if remaind != 0:
+        count_iters += 1
+    return count_iters
+
+
+# Загальна кількість знайдених книг (за певний рік)
+def gener_count_find_books_of_year(irbis_dict, S21CNR):
+    # xpath_query = '/html/body/table/tbody/tr[4]/td[2]/table[4]/tbody/tr[0]/td/b'
+    xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[1]/td/b'
+    response = requests.get(irbis_dict['url_irbis_with_params'])
+    tree = html.fromstring(response.text)
+    
+    num_books = tree.xpath(xpath_query)  # Отримуємо елемент (xpath повертає список)
+    # print(f'\nTree: {tree}')
+    # print(f'\nnum_books: {num_books}')
+    count_docs = int(num_books[0].text_content().strip()) if num_books else 0
+    print(f'\nЗагальна кількість знайдених документів: {count_docs}')
+
+    # # К-сть сторінок певного року
+    count_iters = count_pages_of_year(count_docs, S21CNR)
+    return count_iters
+
+
 def main():
-    # ------------  Init block  ----------------------
-    url_irbis = 'https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe'
-    # Сайт бібліотеки:
-    # url_irbis = 'https://library.kr.ua'
-    
-    
-    # ------------  Loop block ( to bypass pagination each year ) ----------------------
-    # file_path = Path('irbis_page.html') # Here we will store the html code of each uploaded file
-    # # Надалі слід замінити назву ф-лу на нумерацію сторінок:
-    # # /2025/1|2|3...|n.html etc for each year
-    
+    # ------------  Init block  ----------------------    
     year = 2025
-    S21STN = 141 # Сторінка, з якої починаємо збір даних (1 - перша сторінка)
+    S21STN = 1 # Сторінка, з якої починаємо збір даних (1 - перша сторінка)
     S21REF = 10 # Кількість результатів на сторінці (10 - за замовчуванням)
     S21CNR = 20 # Кількість результатів на сторінці (20 - за замовчуванням)
     P21DBN = 'KNIGI' # База даних, яку ми хочемо парсити (KNIGI - книги)
     C21COM = 'S' # Команда для пошуку в БД (S - пошук) /
+
+    url_irbis = 'https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe'
     
+
     irbis_dict = {
         'year': year,
-        'S21STN': S21STN,
+        'S21STN': S21STN, # 1,
         'S21REF': S21REF,
         'S21CNR': S21CNR,
         'P21DBN': P21DBN,
@@ -151,50 +182,85 @@ def main():
         'url_irbis_with_params': f'{url_irbis}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
     }                
 
-    year = irbis_dict["year"]
-    num = irbis_dict["S21STN"]
-    file_path = Path(f'./db/{year}/{num}.html')
+    # year = irbis_dict["year"] # Нащо цей повтор?!..
+    # num = irbis_dict["S21STN"]  # Нащо цей повтор?!..
+
+# ------------
+    # Загальна кількість знайдених документів:
+    count_iters = gener_count_find_books_of_year(irbis_dict, S21CNR)
+    # # xpath_query = '/html/body/table/tbody/tr[4]/td[2]/table[4]/tbody/tr[0]/td/b'
+    # xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[1]/td/b'
+    # response = requests.get(irbis_dict['url_irbis_with_params'])
+    # tree = html.fromstring(response.text)
+    
+    # num_books = tree.xpath(xpath_query)  # Отримуємо елемент (xpath повертає список)
+    # # print(f'\nTree: {tree}')
+    # # print(f'\nnum_books: {num_books}')
+    # count_docs = int(num_books[0].text_content().strip()) if num_books else 0
+    # print(f'\nЗагальна кількість знайдених документів: {count_docs}')
+
+    # # # К-сть сторінок певного року
+    # count_iters = count_pages_of_year(count_docs, S21CNR)
+    # # count_iters, remaind = divmod(count_docs, S21CNR)
+    # # if remaind != 0:
+    # #     count_iters += 1
+# -------------
 
     # ------------  Write + Read block to/from Template file  ----------------------
     # response = None  # Ініціалізуємо змінну response перед блоком if
-    if not file_path.exists(): # Якщо ф-л не існує , виконуємо запит до сервера і зберігаємо результат до файлу
-        response = requests.get(irbis_dict['url_irbis_with_params'])
+    # if not file_path.exists(): # Якщо ф-л не існує , виконуємо запит до сервера і зберігаємо результат до файлу
+    #     response = requests.get(irbis_dict['url_irbis_with_params'])
     #     op_file_write(file_path, response.text)
 
     # html_content = op_file_read(file_path)
 
-    # ------------  Parsing block  ----------------------
-    
-    tree = html.fromstring(response.text)
 
-    # Видаляємо всі елементи `<style>`
-    for style in tree.xpath('//style'):
-        style.getparent().remove(style)
+    # === ЦИКЛ ПО СТОРІНКАХ ===
 
-    # # Вилучаємо усі <input type="hidden"> зі сторінки
-    # for hidden_input in tree.xpath('//input[@type="hidden"]'):
-    #     hidden_input.getparent().remove(hidden_input)
+    for num_page in range(count_iters):
+        S21STN = 1 + S21CNR * num_page  # Формула для номера сторінки
+        # Пізніше оптимізуй код до "S21STN += 20" (щоб менше множити)
 
-    # form
-    # Вилучаємо усі <form> зі сторінки
-    for form_el in tree.xpath('//form'):
-        form_el.getparent().remove(form_el)
-    
-    # # Вилучаємо усі <input type="hidden"> зі сторінки
-    # for hidden_input in tree.xpath('//input[@type="hidden"]'):
-    #     hidden_input.getparent().remove(hidden_input)
-    
-    # Вилучаємо усі <hr noshade> зі сторінки
-    for hr_noshade in tree.xpath('//hr[@noshade]'):
-        hr_noshade.getparent().remove(hr_noshade)
+        # Оновлюємо URL з новим S21STN
+        url_with_params = f'{url_irbis}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+        # print(f'Ітерація {num_page+1}/{count_iters}, S21STN={S21STN}')
 
-    xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
-    books_info = tree.xpath(xpath_query)  # Отримуємо елемент (xpath повертає список)
-    
+        response = requests.get(url_with_params)
+        tree = html.fromstring(response.text)
+
+        # ------------  Parsing block  ----------------------
+        
+        # Видаляємо всі елементи:
+            # <style>
+            # <form>
+            # <hr noshade>
+        del_attr_wth_params(tree, 'style', attr=None, param=None)
+        del_attr_wth_params(tree, 'form', attr=None, param=None)
+        del_attr_wth_params(tree, 'hr', attr='noshade', param=None)
+        
+        # # Видаляємо всі елементи `<style>`
+        # for style in tree.xpath('//style'):
+        #     style.getparent().remove(style)
+
+        # # Вилучаємо усі <form> зі сторінки
+        # for form_el in tree.xpath('//form'):
+        #     form_el.getparent().remove(form_el)
+        
+        # # # Вилучаємо усі <input type="hidden"> зі сторінки
+        # # for hidden_input in tree.xpath('//input[@type="hidden"]'):
+        # #     hidden_input.getparent().remove(hidden_input)
+        
+        # # Вилучаємо усі <hr noshade> зі сторінки
+        # for hr_noshade in tree.xpath('//hr[@noshade]'):
+        #     hr_noshade.getparent().remove(hr_noshade)
+
+        # Отримуємо книги з цієї сторінки
+        xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
+        books_info = tree.xpath(xpath_query)  # Отримуємо елемент (xpath повертає список)
+        
     
     # ------------  Load web page content to file  ----------------------
     
-# яким 1-разовим кодом створити стр-ру:
 # db -|
 #     |- 2025 -|
 #           |- 1.html
@@ -202,40 +268,40 @@ def main():
 #           ...
 #     |- 2024 -|
 #           ...
-# - Ти можеш використовувати наступний код для створення такої структури папок і файлів:
-# import os
-# import datetime
-# year = datetime.datetime.now().year  # Отримуємо поточний рік
-# for y in range(year, year - 5, -1):  # Створюємо папки для останніх 5 років
-#     os.makedirs(f'db/{y}', exist_ok=True)  # Створюємо папку для кожного року
-#     for i in range(1, 11):  # Створюємо 10 файлів для кожного року
-#         with open(f'db/{y}/{i}.html', 'w', encoding='utf-8') as f:
-#             f.write('')  # Записуємо порожній рядок у кожен файл
-
-
-    # Можна вилучити
-    # year = irbis_dict["year"]
-    # num = irbis_dict["S21STN"]
-    # file_path = f'./db/{year}/{num}.html'
 
 
     # # Нащо тоді мені цей код, якщо я вже зберіг потрбні дані кодом вище?
     # # - Ти правий, цей код може бути зайвим, якщо ти вже зберіг потрібні дані у файл.
     # # Його можна видалити або закоментувати, якщо він не потрібен для подальшої обробки даних.     
-    if books_info:
-        # Створіть wrapper-елемент <tbody>
-        tbody = etree.Element('tbody')
 
-        # Додайте усі tr з books_info до tbody
-        for tr in books_info:
-            tbody.append(tr)
+
+        # ------------  Loop block ( to bypass pagination each year ) ----------------------
+        # # /2025/1|2|3...|n.html etc for each year
+
+
+        # Створюємо елемент-обгортку <tbody>, який збережемо разом усіма записами до файлу
+        if books_info:
+            html_string = create_tbody_to_html('tbody', books_info)
+            file_path = Path(f'./db/{year}/{S21STN}.html')
+            # file_path.parent.mkdir(parents=True, exist_ok=True) # мабуть, слід вилучити...
+
+
+            # # Створіть wrapper-елемент <tbody>
+            # tbody = etree.Element('tbody')
+            # # Додайте усі tr з books_info до tbody
+            # for tr in books_info:
+            #     tbody.append(tr)
+            # # Конвертуйте в HTML-рядок
+            # html_string = etree.tostring(tbody, encoding='unicode', method='html')
+            
+            # Запишіть до файлу
+            op_file_write(file_path, html_string)
+
+            print(f'Збережено: {file_path}')
         
-        # Конвертуйте в HTML-рядок
-        html_string = etree.tostring(tbody, encoding='unicode', method='html')
-        
-        # Запишіть до файлу
-        op_file_write(file_path, html_string)
-        
+        else:
+            print(f'Немає книг на сторінці {S21STN}')
+
         # # tbody = books_info[0]  # Отримуємо перший елемент tbody
         # # Приклад отримання тексту всіх комірок всередині цього tbody
 
@@ -245,38 +311,25 @@ def main():
         # op_file_write(file_path, html_string)
         # # op_json_file_write(file_path, html_string)
         
-
-        # Чому
-        # ...op_file_write
-        # f.write(content)
-        # TypeError: write() argument must be str, not HtmlElement
-        # - Це означає, що функція write() очікує рядок (str) в якості аргументу,
-        # але отримує об'єкт типу HtmlElement.   
         
-        # Як же записати до ф-лу саме html-код, а не текстовий вміст цього коду?
         # - Щоб записати до файлу саме HTML-код, а не текстовий вміст,
         # ти можеш використовувати метод .tostring() з бібліотеки lxml
         # для перетворення об'єкта HtmlElement у рядок, який містить HTML-код.
-        # Ось як це можна зробити:
         # from lxml import etree
         # html_string = etree.tostring(tbody, encoding='unicode', method='html')
         # op_file_write(file_path, html_string)
-
         
         # що є data? - Це список текстового вмісту всіх комірок (td) всередині першого елемента tbody,
         # який містить інформацію про книги.
         # Кожен елемент цього списку є рядком, який представляє текстовий вміст відповідної комірки таблиці.  
-
         # data = [td.text_content().strip() for td in tbody.xpath('.//td')]
         # print(data)
         # op_json_file_write(file_path, data)
 
-
     
     # # ------------  Write block to parsed data file  ----------------------
     
-    # file_path_3 = 'irbis_data.json'
-    
+    # file_path_3 = 'irbis_data.json'    
     # books = []
 
     # for book in books_info:
