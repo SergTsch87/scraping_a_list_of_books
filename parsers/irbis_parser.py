@@ -42,7 +42,7 @@ S21CNR = 20 # Кількість результатів на сторінці (2
 P21DBN = 'KNIGI' # База даних, яку ми хочемо парсити (KNIGI - книги)
 C21COM = 'S' # Команда для пошуку в БД (S - пошук) /
 
-url_irbis = 'https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe'
+URL_IRBIS_BASE = 'https://irbis.library.kr.ua/cgi-bin/irbis64r_72/cgiirbis_64.exe'
 
 
 irbis_dict = {
@@ -204,15 +204,23 @@ def gener_count_find_books_of_year(irbis_dict):
     return count_docs
 
 
+def url_with_params(year):
+    return f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+
+
 def main():
+    list_of_empty_years = []
+    list_of_error_years = []
+    
     for year in range(1800, 2027):
-        if has_year(url_with_params) == 1: # є записи за цей рік
+        url = url_with_params(year)
+        if has_year(url) == 1: # є записи за цей рік
             # html_code_page = get_html_code_of_page_by_its_url(year)
             # Обходимо усі записи на сторінці, вилучаємо зайве, формуємо Book і зберігаємо його до html-файлу
             pass # !!! - логіка парсингу сторінки з книгами певного року, формування Book і збереження його до html-файлу
-        if has_year(url_with_params) == 0: # нема записів за цей рік
+        if has_year(url) == 0: # нема записів за цей рік
              list_of_empty_years.append(year) # для статистики, які роки були оброблені
-        if has_year(url_with_params) == -1: # невідома помилка
+        if has_year(url) == -1: # невідома помилка
              log_error(year, html_code_page) # для статистики, які роки були оброблені з помилкою
              list_of_error_years.append(year) # для статистики, які роки були оброблені з помилкою
 
