@@ -152,7 +152,9 @@ def has_year(url_with_params: str) -> tuple[int, list | None]:
     # - тег з атр-том і пар-ром
     # - тег з атр-том і без пар-ра
     # - тег без атр-та
-def del_attr_wth_params(tree_xpath, tag, attr=None, param=None):
+def del_attr_wth_params(html_code_page, tag, attr=None, param=None):
+    tree_xpath = html_code_page[0].getroottree() if html_code_page else None  # отримуємо дерево з html-коду сторінки
+    
     if attr is None and param is None:
         str_xpath = f'//{tag}'
     elif param is None:
@@ -232,16 +234,9 @@ def main():
                         # <style>
                         # <form>
                         # <hr noshade>
-                    del_attr_wth_params(tree, 'style', attr=None, param=None)
-                    del_attr_wth_params(tree, 'form', attr=None, param=None)
-                    del_attr_wth_params(tree, 'hr', attr='noshade', param=None)
-
-                    # tree == html.fromstring(response.text)
-
-                    # Ні, не спрацює.
-                    # `html_code_page` у `has_year()` повертається як список xpath-елементів,
-                    # а `del_attr_wth_params()` викликає `tree_xpath.xpath(...)`.
-                    # Тобто `list` не має `xpath` і це дасть `AttributeError`.
+                    del_attr_wth_params(html_code_page, 'style', attr=None, param=None)
+                    del_attr_wth_params(html_code_page, 'form', attr=None, param=None)
+                    del_attr_wth_params(html_code_page, 'hr', attr='noshade', param=None)
 
                 else: # для наступних сторінок - формуємо новий URL та отримуємо новий html_code_page
                     S21STN = 1 + S21CNR * iter_page  # Формула для номера сторінки
@@ -258,9 +253,9 @@ def main():
                         # <style>
                         # <form>
                         # <hr noshade>
-                    del_attr_wth_params(tree, 'style', attr=None, param=None)
-                    del_attr_wth_params(tree, 'form', attr=None, param=None)
-                    del_attr_wth_params(tree, 'hr', attr='noshade', param=None)
+                    del_attr_wth_params(html_code_page, 'style', attr=None, param=None)
+                    del_attr_wth_params(html_code_page, 'form', attr=None, param=None)
+                    del_attr_wth_params(html_code_page, 'hr', attr='noshade', param=None)
 
 
 if __name__ == '__main__':
