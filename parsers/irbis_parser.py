@@ -209,6 +209,7 @@ def main():
     for year in range(1800, 2027):
         url = get_url_with_params(year)
         year_status, html_code_page = has_year(url) # html_code_page - html-код сторінки з книгами певного року
+        # html_code_page == html.fromstring(response.text).xpath(str_xpath_query)
 
         if year_status == 0: # нема записів за цей рік
              list_of_empty_years.append(year) # для статистики, які роки були оброблені
@@ -237,6 +238,19 @@ def main():
                     del_attr_wth_params(html_code_page, 'style', attr=None, param=None)
                     del_attr_wth_params(html_code_page, 'form', attr=None, param=None)
                     del_attr_wth_params(html_code_page, 'hr', attr='noshade', param=None)
+
+                    # -------- Слід перевірити цей код: -----------
+                    # Отримуємо дерево з html_code_page
+                    tree = html_code_page[0].getroottree() if html_code_page else None
+
+                    # Отримуємо книги з цієї сторінки
+                    xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
+                    books_info = tree.xpath(xpath_query) if tree else []  # Отримуємо елемент (xpath повертає список)
+
+                    # Створюємо елемент-обгортку <tbody>, який збережемо разом усіма записами до файлу
+                    if books_info:
+                        html_string = create_tbody_to_html('tbody', books_info)
+                    # -------------- Кінець блоку, який слід перевірити --------------
 
                 else: # для наступних сторінок - формуємо новий URL та отримуємо новий html_code_page
                     S21STN = 1 + S21CNR * iter_page  # Формула для номера сторінки
