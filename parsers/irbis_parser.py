@@ -127,6 +127,10 @@ def op_file_read(file_path):
 # Чи є блок записів певного року?
 # Get html-код сторінки з книгами певного року (якщо є) / повідомлення про відсутність записів / повідомлення про помилку
 def has_year(url_with_params: str) -> tuple[int, list | None]:
+    # otput year status:
+    #    -1  ->  невідома помилка
+    #     0  ->  нема записів за цей рік
+    #     1  ->  є записи за цей рік
     xpath_query_books = '/html/body/table/tr[4]/td[2]/table[3]/tr[1]/td'
     xpath_query_empty = '/html/body/table/tr[4]/td[2]/table[2]/tr/td/big'
     response = requests.get(url_with_params)
@@ -150,13 +154,13 @@ def has_year(url_with_params: str) -> tuple[int, list | None]:
     # - тег без атр-та
 def del_attr_wth_params(tree_xpath, tag, attr=None, param=None):
     if attr is None and param is None:
-        xpath = f'//{tag}'
+        str_xpath = f'//{tag}'
     elif param is None:
-        xpath = f'//{tag}[@{attr}]'
+        str_xpath = f'//{tag}[@{attr}]'
     else:
-        xpath = f'//{tag}[@{attr}="{param}"]'
+        str_xpath = f'//{tag}[@{attr}="{param}"]'
 
-    for el in tree_xpath.xpath(xpath):
+    for el in tree_xpath.xpath(str_xpath):
         parent = el.getparent()
         if parent is not None:
             parent.remove(el)
@@ -202,15 +206,16 @@ def main():
 
     for year in range(1800, 2027):
         url = get_url_with_params(year)
+        year_status, html_code_page = has_year(url) # html_code_page - html-код сторінки з книгами певного року
 
-        if has_year(url)[0] == 0: # нема записів за цей рік
+        if year_status == 0: # нема записів за цей рік
              list_of_empty_years.append(year) # для статистики, які роки були оброблені
-        if has_year(url)[0] == -1: # невідома помилка
+        if year_status == -1: # невідома помилка
             #  log_error(year, html_code_page) # для статистики, які роки були оброблені з помилкою
              list_of_error_years.append(year) # для статистики, які роки були оброблені з помилкою
 
-        if has_year(url)[0] == 1: # є записи за цей рік
-            html_code_page = has_year(url)[1] # отримуємо html-код сторінки з книгами певного року
+        if year_status == 1: # є записи за цей рік
+            # html_code_page = has_year(url)[1] # отримуємо html-код сторінки з книгами певного року
             # Обходимо усі записи на сторінці, вилучаємо зайве, формуємо Book і зберігаємо його до html-файлу
             count_docs = gener_count_find_books_of_year(html_code_page)
             print(f'\nЗагальна кількість знайдених документів: {count_docs}')
@@ -220,23 +225,42 @@ def main():
             for iter_page in range(1, count_pages + 1):
         # ------------  Parsing block  ----------------------
 
-                S21STN = 1 + S21CNR * iter_page  # Формула для номера сторінки
-                # Пізніше оптимізуй код до "S21STN += 20" (щоб менше множити)
+                if iter_page == 1: # для першої сторінки - ті ж URL та html_code_page
+                    print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN}') # for test
 
-                # Оновлюємо URL з новим S21STN
-                url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
-                print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN}')
+                    # Видаляємо всі елементи:
+                        # <style>
+                        # <form>
+                        # <hr noshade>
+                    del_attr_wth_params(tree, 'style', attr=None, param=None)
+                    del_attr_wth_params(tree, 'form', attr=None, param=None)
+                    del_attr_wth_params(tree, 'hr', attr='noshade', param=None)
 
-                response = requests.get(url_with_params)
-                tree = html.fromstring(response.text)
+                    # tree == html.fromstring(response.text)
 
-                # Видаляємо всі елементи:
-                    # <style>
-                    # <form>
-                    # <hr noshade>
-                del_attr_wth_params(tree, 'style', attr=None, param=None)
-                del_attr_wth_params(tree, 'form', attr=None, param=None)
-                del_attr_wth_params(tree, 'hr', attr='noshade', param=None)
+                    # Ні, не спрацює.
+                    # `html_code_page` у `has_year()` повертається як список xpath-елементів,
+                    # а `del_attr_wth_params()` викликає `tree_xpath.xpath(...)`.
+                    # Тобто `list` не має `xpath` і це дасть `AttributeError`.
+
+                else: # для наступних сторінок - формуємо новий URL та отримуємо новий html_code_page
+                    S21STN = 1 + S21CNR * iter_page  # Формула для номера сторінки
+                    # Пізніше оптимізуй код до "S21STN += 20" (щоб менше множити)
+
+                    # Оновлюємо URL з новим S21STN
+                    url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+                    print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN}') # for test
+
+                    response = requests.get(url_with_params)
+                    tree = html.fromstring(response.text)
+
+                    # Видаляємо всі елементи:
+                        # <style>
+                        # <form>
+                        # <hr noshade>
+                    del_attr_wth_params(tree, 'style', attr=None, param=None)
+                    del_attr_wth_params(tree, 'form', attr=None, param=None)
+                    del_attr_wth_params(tree, 'hr', attr='noshade', param=None)
 
 
 if __name__ == '__main__':
