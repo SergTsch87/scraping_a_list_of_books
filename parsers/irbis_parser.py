@@ -123,20 +123,23 @@ def op_file_read(file_path):
         return f.read()
 
 
-# Чи є сторінка (і книги) певного року?
-def has_year():
-    xpath_query = '/html/body/table/tr[4]/td[2]/table[3]'
-    response = requests.get(url_irbis_with_params)
+# Чи є блок записів певного року?
+def has_year(url_with_params):
+    xpath_query_books = '/html/body/table/tr[4]/td[2]/table[3]/tr[1]/td'
+    xpath_query_empty = '/html/body/table/tr[4]/td[2]/table[2]/tr/td/big'
+    response = requests.get(url_with_params)
     tree = html.fromstring(response.text)
-    has_books = tree.xpath(xpath_query)
+    has_books = tree.xpath(xpath_query_books)
+    has_empty = tree.xpath(xpath_query_empty)
+
+    if has_books: # є записи певного року
+        return 1
     
-    if has_books: # є сторінка певного року
-        # /html/body/table/tr[4]/td[2]/table[3]/tr[1]/td
-        return True
-    else:
-        # print('Нема книг за цей рік')
-        # /html/body/table/tr[4]/td[2]/table[2]/tr/td/big
-        return False
+    if has_empty: # немає записів певного року
+        return 0
+    
+    if not has_books and not has_empty: # невідома помилка
+        return -1
 
 
 # Вилучаємо зі сторінки усі:
@@ -203,13 +206,13 @@ def gener_count_find_books_of_year(irbis_dict):
 
 def main():
     for year in range(1800, 2027):
-        html_code_page = get_html_code_of_page_by_its_url(year)
-        if <є записи за цей рік> у html_code_page:
-            Обходимо усі записи на сторінці, вилучаємо зайве, формуємо Book і зберігаємо його до html-файлу
-        if <нема записів за цей рік> у html_code_page:
-             ніц не робимо, переходимо до наступного року
+        if has_year(url_with_params) == 1: # є записи за цей рік
+            # html_code_page = get_html_code_of_page_by_its_url(year)
+            # Обходимо усі записи на сторінці, вилучаємо зайве, формуємо Book і зберігаємо його до html-файлу
+            pass # !!! - логіка парсингу сторінки з книгами певного року, формування Book і збереження його до html-файлу
+        if has_year(url_with_params) == 0: # нема записів за цей рік
              list_of_empty_years.append(year) # для статистики, які роки були оброблені
-        if <unknown error> у html_code_page:
+        if has_year(url_with_params) == -1: # невідома помилка
              log_error(year, html_code_page) # для статистики, які роки були оброблені з помилкою
              list_of_error_years.append(year) # для статистики, які роки були оброблені з помилкою
 
