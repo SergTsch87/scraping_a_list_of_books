@@ -238,22 +238,6 @@ def main():
         del_attr_wth_params(tree, 'form', attr=None, param=None)
         del_attr_wth_params(tree, 'hr', attr='noshade', param=None)
         
-        # # Видаляємо всі елементи `<style>`
-        # for style in tree.xpath('//style'):
-        #     style.getparent().remove(style)
-
-        # # Вилучаємо усі <form> зі сторінки
-        # for form_el in tree.xpath('//form'):
-        #     form_el.getparent().remove(form_el)
-        
-        # # # Вилучаємо усі <input type="hidden"> зі сторінки
-        # # for hidden_input in tree.xpath('//input[@type="hidden"]'):
-        # #     hidden_input.getparent().remove(hidden_input)
-        
-        # # Вилучаємо усі <hr noshade> зі сторінки
-        # for hr_noshade in tree.xpath('//hr[@noshade]'):
-        #     hr_noshade.getparent().remove(hr_noshade)
-
         # Отримуємо книги з цієї сторінки
         xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
         books_info = tree.xpath(xpath_query)  # Отримуємо елемент (xpath повертає список)
