@@ -26,7 +26,8 @@
 # from gettext import find
 
 import json
-import requests, socket, time
+import requests
+#impirt socket, time
 from bs4 import BeautifulSoup
 from lxml import html, etree
 
@@ -124,6 +125,7 @@ def op_file_read(file_path):
 
 
 # Чи є блок записів певного року?
+# Get html-код сторінки з книгами певного року (якщо є) / повідомлення про відсутність записів / повідомлення про помилку
 def has_year(url_with_params: str) -> tuple[int, list | None]:
     xpath_query_books = '/html/body/table/tr[4]/td[2]/table[3]/tr[1]/td'
     xpath_query_empty = '/html/body/table/tr[4]/td[2]/table[2]/tr/td/big'
@@ -190,7 +192,7 @@ def gener_count_find_books_of_year(html_code_page):
     return count_docs
 
 
-def url_with_params(year):
+def get_url_with_params(year):
     return f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
 
 
@@ -199,7 +201,7 @@ def main():
     list_of_error_years = []
 
     for year in range(1800, 2027):
-        url = url_with_params(year)
+        url = get_url_with_params(year)
 
         if has_year(url)[0] == 0: # нема записів за цей рік
              list_of_empty_years.append(year) # для статистики, які роки були оброблені
