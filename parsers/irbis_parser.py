@@ -159,9 +159,6 @@ def del_attr_wth_params(tree_xpath, tag, attr=None, param=None):
         if parent is not None:
             parent.remove(el)
 
-    # for param_tag in tree_xpath.xpath(f'//{tag}[@{attr}="{param}"]'):
-    #     param_tag.getparent().remove(param_tag)
-
 
 def create_tbody_to_html(tag, tree_xpath):
     # Створіть wrapper-елемент <tbody>
@@ -219,7 +216,16 @@ def main():
             print(f'\nКількість сторінок: {count_pages}')
 
             for iter_page in range(1, count_pages + 1):
-                pass
+        # ------------  Parsing block  ----------------------
+                
+                # Видаляємо всі елементи:
+                    # <style>
+                    # <form>
+                    # <hr noshade>
+                del_attr_wth_params(tree, 'style', attr=None, param=None)
+                del_attr_wth_params(tree, 'form', attr=None, param=None)
+                del_attr_wth_params(tree, 'hr', attr='noshade', param=None)
+
 
 if __name__ == '__main__':
     main()
