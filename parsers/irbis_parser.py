@@ -217,7 +217,17 @@ def main():
 
             for iter_page in range(1, count_pages + 1):
         # ------------  Parsing block  ----------------------
-                
+
+                S21STN = 1 + S21CNR * iter_page  # Формула для номера сторінки
+                # Пізніше оптимізуй код до "S21STN += 20" (щоб менше множити)
+
+                # Оновлюємо URL з новим S21STN
+                url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+                print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN}')
+
+                response = requests.get(url_with_params)
+                tree = html.fromstring(response.text)
+
                 # Видаляємо всі елементи:
                     # <style>
                     # <form>
