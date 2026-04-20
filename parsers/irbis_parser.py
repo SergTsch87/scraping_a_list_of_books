@@ -124,7 +124,7 @@ def op_file_read(file_path):
 
 
 # Чи є блок записів певного року?
-def has_year(url_with_params):
+def has_year(url_with_params: str) -> tuple[int, list | None]:
     xpath_query_books = '/html/body/table/tr[4]/td[2]/table[3]/tr[1]/td'
     xpath_query_empty = '/html/body/table/tr[4]/td[2]/table[2]/tr/td/big'
     response = requests.get(url_with_params)
@@ -133,13 +133,13 @@ def has_year(url_with_params):
     has_empty = tree.xpath(xpath_query_empty)
 
     if has_books: # є записи певного року
-        return 1
+        return 1, has_books
     
     if has_empty: # немає записів певного року
-        return 0
+        return 0, has_empty
     
     if not has_books and not has_empty: # невідома помилка
-        return -1
+        return -1, None
 
 
 # Вилучаємо зі сторінки усі:
@@ -181,26 +181,15 @@ def create_tbody_to_html(tag, tree_xpath):
 
 # К-сть сторінок певного року
 def count_pages_of_year(count_docs, S21CNR): # S21CNR == 20 (by def-t)
-    count_iters, remaind = divmod(count_docs, S21CNR)
+    count_pages, remaind = divmod(count_docs, S21CNR)
     if remaind != 0:
-        count_iters += 1
-    return count_iters
+        count_pages += 1
+    return count_pages
 
 
 # Загальна кількість знайдених книг (за певний рік)
-def gener_count_find_books_of_year(irbis_dict):
-                    # html/body/table/tr[4]/td[2]/table[2
-    xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[1]/td/b'
-    response = requests.get(irbis_dict['url_irbis_with_params'])
-    tree = html.fromstring(response.text)
-    
-    num_books = tree.xpath(xpath_query)
-    count_docs = int(num_books[0].text_content().strip()) if num_books else 0
-    print(f'\nЗагальна кількість знайдених документів: {count_docs}')
-
-    # # # К-сть сторінок певного року
-    # count_iters = count_pages_of_year(count_docs, S21CNR)
-    # return count_iters # ???
+def gener_count_find_books_of_year(html_code_page):
+    count_docs = int(html_code_page[0].text_content().strip()) if html_code_page else 0
     return count_docs
 
 
@@ -211,19 +200,26 @@ def url_with_params(year):
 def main():
     list_of_empty_years = []
     list_of_error_years = []
-    
+
     for year in range(1800, 2027):
         url = url_with_params(year)
-        if has_year(url) == 1: # є записи за цей рік
-            # html_code_page = get_html_code_of_page_by_its_url(year)
-            # Обходимо усі записи на сторінці, вилучаємо зайве, формуємо Book і зберігаємо його до html-файлу
-            pass # !!! - логіка парсингу сторінки з книгами певного року, формування Book і збереження його до html-файлу
-        if has_year(url) == 0: # нема записів за цей рік
+
+        if has_year(url)[0] == 0: # нема записів за цей рік
              list_of_empty_years.append(year) # для статистики, які роки були оброблені
-        if has_year(url) == -1: # невідома помилка
-             log_error(year, html_code_page) # для статистики, які роки були оброблені з помилкою
+        if has_year(url)[0] == -1: # невідома помилка
+            #  log_error(year, html_code_page) # для статистики, які роки були оброблені з помилкою
              list_of_error_years.append(year) # для статистики, які роки були оброблені з помилкою
 
+        if has_year(url)[0] == 1: # є записи за цей рік
+            html_code_page = has_year(url)[1] # отримуємо html-код сторінки з книгами певного року
+            # Обходимо усі записи на сторінці, вилучаємо зайве, формуємо Book і зберігаємо його до html-файлу
+            count_docs = gener_count_find_books_of_year(html_code_page)
+            print(f'\nЗагальна кількість знайдених документів: {count_docs}')
+            count_pages = count_pages_of_year(count_docs, S21CNR)
+            print(f'\nКількість сторінок: {count_pages}')
+
+            for iter_page in range(1, count_pages + 1):
+                pass
 
 if __name__ == '__main__':
     main()
