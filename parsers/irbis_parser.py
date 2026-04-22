@@ -198,10 +198,14 @@ def gener_count_find_books_of_year(html_code_page):
     return count_docs
 
 
-def get_url_with_params(year_local = None, S21STN_local = None) -> str:
-    val_year = year_local if year_local is not None else str(year_local)
-    val_S21STN = S21STN_local if S21STN_local is not None else str(S21STN_local)
-    return f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN=KNIGI&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{val_year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={val_S21STN}&S21REF=10&S21CNR=20'
+# def get_url_with_params(year_local = None, S21STN_local = None) -> str:
+#     val_year = year_local if year_local is not None else str(year_local)
+#     val_S21STN = S21STN_local if S21STN_local is not None else str(S21STN_local)
+#     return f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN=KNIGI&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{val_year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={val_S21STN}&S21REF=10&S21CNR=20'
+
+def get_url_with_params(year_local, S21STN_local) -> str:
+    return f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN=KNIGI&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year_local}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN_local}&S21REF=10&S21CNR=20'
+
 
 
 def main():
@@ -209,8 +213,8 @@ def main():
     list_of_error_years = []
 
     for year in range(1800, 2027):
-        url = get_url_with_params(year_local = year)
-        year_status, html_code_page = has_year(url) # html_code_page - html-код сторінки з книгами певного року
+        url = get_url_with_params(year_local = year, S21STN_local = 1)
+        year_status, html_code_page = has_year(url) # html_code_page - html-кod сторінки з книгами певного року
                 # html_code_page == html.fromstring(response.text).xpath(str_xpath_query)
 
         if year_status == 0: # нема записів за цей рік
@@ -226,9 +230,9 @@ def main():
             print(f'\nЗагальна кількість знайдених документів: {count_docs}')
             count_pages = count_pages_of_year(count_docs, S21CNR)
             print(f'\nКількість сторінок: {count_pages}')
-            S21STN_local = 1 # Сторінка, з якої починаємо збір даних (1 - перша сторінка) - для кожного року починаємо з 1шої сторінки
+            S21STN_local = 1 # Сторінка, з якої починаємо збір даних (1 - перша сторінка) для кожного року
 
-            for iter_page in range(1, count_pages + 1):
+            for iter_page in range(1, count_pages + 1): # Обхід пагінації
         # ------------  Parsing block  ----------------------
 
                 print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN_local}') # for test
@@ -237,14 +241,15 @@ def main():
                 # Пізніше оптимізуй код до "S21STN_local += 20" (щоб менше множити)
 
                 # Оновлюємо URL з новим S21STN_local
-                url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN_local}&S21REF={S21REF}&S21CNR={S21CNR}'
+                # url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN_local}&S21REF={S21REF}&S21CNR={S21CNR}'
+                url = get_url_with_params(year_local = year, S21STN_local = S21STN_local)
                 print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN_local}') # for test
 
                 # response = requests.get(url_with_params)
                 # tree = html.fromstring(response.text)
 
                 # html_code_page = html.fromstring(requests.get(url_with_params).text).xpath('/html/body/table/tr[4]/td[2]/table[3]/tr[1]/td') # отримуємо html-код сторінки з книгами певного року
-                url = get_url_with_params(year_local = year)
+                # url = get_url_with_params(year_local = year, S21STN_local = S21STN_local)
                 _, html_code_page = has_year(url)
 
                 # Видаляємо всі елементи:
