@@ -53,7 +53,7 @@ irbis_dict = {
     'S21CNR': S21CNR,
     'P21DBN': P21DBN,
     'C21COM': C21COM,
-    'url_irbis_with_params': f'{url_irbis}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+    'url_irbis_with_params': f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
 }
 
 url_irbis_with_params = irbis_dict['url_irbis_with_params']
@@ -198,8 +198,10 @@ def gener_count_find_books_of_year(html_code_page):
     return count_docs
 
 
-def get_url_with_params(year):
-    return f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+def get_url_with_params(year_local = None, S21STN_local = None) -> str:
+    val_year = year_local if year_local is not None else str(year_local)
+    val_S21STN = S21STN_local if S21STN_local is not None else str(S21STN_local)
+    return f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN=KNIGI&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{val_year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={val_S21STN}&S21REF=10&S21CNR=20'
 
 
 def main():
@@ -207,9 +209,9 @@ def main():
     list_of_error_years = []
 
     for year in range(1800, 2027):
-        url = get_url_with_params(year)
+        url = get_url_with_params(year_local = year)
         year_status, html_code_page = has_year(url) # html_code_page - html-код сторінки з книгами певного року
-        # html_code_page == html.fromstring(response.text).xpath(str_xpath_query)
+                # html_code_page == html.fromstring(response.text).xpath(str_xpath_query)
 
         if year_status == 0: # нема записів за цей рік
              list_of_empty_years.append(year) # для статистики, які роки були оброблені
@@ -224,52 +226,117 @@ def main():
             print(f'\nЗагальна кількість знайдених документів: {count_docs}')
             count_pages = count_pages_of_year(count_docs, S21CNR)
             print(f'\nКількість сторінок: {count_pages}')
+            S21STN_local = 1 # Сторінка, з якої починаємо збір даних (1 - перша сторінка) - для кожного року починаємо з 1шої сторінки
 
             for iter_page in range(1, count_pages + 1):
         # ------------  Parsing block  ----------------------
 
-                if iter_page == 1: # для першої сторінки - ті ж URL та html_code_page
-                    print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN}') # for test
+                print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN_local}') # for test
+                
+                S21STN_local = 1 + S21CNR * iter_page  # Формула для номера сторінки
+                # Пізніше оптимізуй код до "S21STN_local += 20" (щоб менше множити)
 
-                    # Видаляємо всі елементи:
-                        # <style>
-                        # <form>
-                        # <hr noshade>
-                    del_attr_wth_params(html_code_page, 'style', attr=None, param=None)
-                    del_attr_wth_params(html_code_page, 'form', attr=None, param=None)
-                    del_attr_wth_params(html_code_page, 'hr', attr='noshade', param=None)
+                # Оновлюємо URL з новим S21STN_local
+                url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN_local}&S21REF={S21REF}&S21CNR={S21CNR}'
+                print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN_local}') # for test
 
-                    # -------- Слід перевірити цей код: -----------
-                    # Отримуємо дерево з html_code_page
-                    tree = html_code_page[0].getroottree() if html_code_page else None
+                # response = requests.get(url_with_params)
+                # tree = html.fromstring(response.text)
 
-                    # Отримуємо книги з цієї сторінки
-                    xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
-                    books_info = tree.xpath(xpath_query) if tree else []  # Отримуємо елемент (xpath повертає список)
+                # html_code_page = html.fromstring(requests.get(url_with_params).text).xpath('/html/body/table/tr[4]/td[2]/table[3]/tr[1]/td') # отримуємо html-код сторінки з книгами певного року
+                url = get_url_with_params(year_local = year)
+                _, html_code_page = has_year(url)
 
-                    # Створюємо елемент-обгортку <tbody>, який збережемо разом усіма записами до файлу
-                    if books_info:
-                        html_string = create_tbody_to_html('tbody', books_info)
-                    # -------------- Кінець блоку, який слід перевірити --------------
+                # Видаляємо всі елементи:
+                    # <style>
+                    # <form>
+                    # <hr noshade>
+                del_attr_wth_params(html_code_page, 'style', attr=None, param=None)
+                del_attr_wth_params(html_code_page, 'form', attr=None, param=None)
+                del_attr_wth_params(html_code_page, 'hr', attr='noshade', param=None)
 
-                else: # для наступних сторінок - формуємо новий URL та отримуємо новий html_code_page
-                    S21STN = 1 + S21CNR * iter_page  # Формула для номера сторінки
-                    # Пізніше оптимізуй код до "S21STN += 20" (щоб менше множити)
 
-                    # Оновлюємо URL з новим S21STN
-                    url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
-                    print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN}') # for test
+                # -------- Слід перевірити цей код: -----------
 
-                    response = requests.get(url_with_params)
-                    tree = html.fromstring(response.text)
+                # Отримуємо дерево з html_code_page
+                tree = html_code_page[0].getroottree() if html_code_page else None
 
-                    # Видаляємо всі елементи:
-                        # <style>
-                        # <form>
-                        # <hr noshade>
-                    del_attr_wth_params(html_code_page, 'style', attr=None, param=None)
-                    del_attr_wth_params(html_code_page, 'form', attr=None, param=None)
-                    del_attr_wth_params(html_code_page, 'hr', attr='noshade', param=None)
+                # Отримуємо книги з цієї сторінки
+                xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
+                books_info = tree.xpath(xpath_query) if tree else []  # Отримуємо елемент (xpath повертає список)
+
+                # Створюємо елемент-обгортку <tbody>, який збережемо разом усіма записами до файлу
+                if books_info:
+                    html_string = create_tbody_to_html('tbody', books_info)
+                # -------------- Кінець блоку, який слід перевірити --------------
+                    
+                    file_path = Path(f'./db/{year}/{S21STN_local}.html')
+
+                    # Запишіть до файлу
+                    op_file_write(file_path, html_string)
+
+                    print(f'Збережено: {file_path}')
+
+        # ---------------------- THE END ----------------------
+
+                # if iter_page == 1: # для першої сторінки - ті ж URL та html_code_page
+                # # Яка саме різниця між 1шою та nexts pges?
+                # # Чи можна обійтися без цієї перевірки і просто updtng URL та html_code_page
+                # # для each iter, включаючи 1шу? (щоб не дублювати код для 1шої page)
+
+
+                #     print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN}') # for test
+
+                #     # Видаляємо всі елементи:
+                #         # <style>
+                #         # <form>
+                #         # <hr noshade>
+                #     del_attr_wth_params(html_code_page, 'style', attr=None, param=None)
+                #     del_attr_wth_params(html_code_page, 'form', attr=None, param=None)
+                #     del_attr_wth_params(html_code_page, 'hr', attr='noshade', param=None)
+
+                #     # -------- Слід перевірити цей код: -----------
+                #     # Отримуємо дерево з html_code_page
+                #     tree = html_code_page[0].getroottree() if html_code_page else None
+
+                #     # Отримуємо книги з цієї сторінки
+                #     xpath_query = '/html/body/table/tr[4]/td[2]/table[4]/tr[@width="100%"]'  # отримання рядків з інформацією про книги  
+                #     books_info = tree.xpath(xpath_query) if tree else []  # Отримуємо елемент (xpath повертає список)
+
+                #     # Створюємо елемент-обгортку <tbody>, який збережемо разом усіма записами до файлу
+                #     if books_info:
+                #         html_string = create_tbody_to_html('tbody', books_info)
+                #     # -------------- Кінець блоку, який слід перевірити --------------
+                        
+                #         file_path = Path(f'./db/{year}/{S21STN}.html')
+
+                #         # Запишіть до файлу
+                #         op_file_write(file_path, html_string)
+
+                #         print(f'Збережено: {file_path}')
+
+                # else: # для наступних сторінок - формуємо новий URL та отримуємо новий html_code_page
+                #     S21STN = 1 + S21CNR * iter_page  # Формула для номера сторінки
+                #     # Пізніше оптимізуй код до "S21STN += 20" (щоб менше множити)
+
+                #     # Оновлюємо URL з новим S21STN
+                #     url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN}&S21REF={S21REF}&S21CNR={S21CNR}'
+                #     print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN}') # for test
+
+                #     # response = requests.get(url_with_params)
+                #     # tree = html.fromstring(response.text)
+
+                #     # html_code_page = html.fromstring(requests.get(url_with_params).text).xpath('/html/body/table/tr[4]/td[2]/table[3]/tr[1]/td') # отримуємо html-код сторінки з книгами певного року
+                #     url = get_url_with_params(year)
+                #     _, html_code_page = has_year(url)
+
+                #     # Видаляємо всі елементи:
+                #         # <style>
+                #         # <form>
+                #         # <hr noshade>
+                #     del_attr_wth_params(html_code_page, 'style', attr=None, param=None)
+                #     del_attr_wth_params(html_code_page, 'form', attr=None, param=None)
+                #     del_attr_wth_params(html_code_page, 'hr', attr='noshade', param=None)
 
 
 if __name__ == '__main__':
