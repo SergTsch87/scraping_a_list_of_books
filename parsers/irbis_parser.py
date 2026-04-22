@@ -209,19 +209,27 @@ def get_url_with_params(year_local, S21STN_local) -> str:
 
 
 def main():
-    list_of_empty_years = []
-    list_of_error_years = []
+    # list_of_empty_years = []
+    # list_of_error_years = []
 
-    for year in range(1800, 2027):
+    set_of_empty_years = set()
+    set_of_error_years = set()
+
+    # Як ч-з bash mkdir створити багаторівневу структуру папок для збереження файлів (наприклад, ./db/1200/, ./db/1600, ./db/1800 тощо для кожного року) - щоб не зберігати всі файли в одній папці?
+    # mkdir -p ./db/1200/ ./db/1600/ ./db   
+
+    # for year in range(1800, 2027):
+    my_list = [1200, 1800, 1900, 2000, 2025]
+    for year in my_list:
         url = get_url_with_params(year_local = year, S21STN_local = 1)
         year_status, html_code_page = has_year(url) # html_code_page - html-кod сторінки з книгами певного року
                 # html_code_page == html.fromstring(response.text).xpath(str_xpath_query)
 
         if year_status == 0: # нема записів за цей рік
-             list_of_empty_years.append(year) # для статистики, які роки були оброблені
+             set_of_empty_years.add(year) # для статистики, які роки були оброблені без записів
         if year_status == -1: # невідома помилка
             #  log_error(year, html_code_page) # для статистики, які роки були оброблені з помилкою
-             list_of_error_years.append(year) # для статистики, які роки були оброблені з помилкою
+             set_of_error_years.add(year) # для статистики, які роки були оброблені з помилкою
 
         if year_status == 1: # є записи за цей рік
             # html_code_page = has_year(url)[1] # отримуємо html-код сторінки з книгами певного року
@@ -235,7 +243,7 @@ def main():
             for iter_page in range(1, count_pages + 1): # Обхід пагінації
         # ------------  Parsing block  ----------------------
 
-                print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN_local}') # for test
+                print(f'Ітерація {iter_page}/{count_pages}, {S21STN_local=}') # for test
                 
                 S21STN_local = 1 + S21CNR * iter_page  # Формула для номера сторінки
                 # Пізніше оптимізуй код до "S21STN_local += 20" (щоб менше множити)
@@ -243,7 +251,7 @@ def main():
                 # Оновлюємо URL з новим S21STN_local
                 # url_with_params = f'{URL_IRBIS_BASE}?C21COM=S&I21DBN=KNIGI&P21DBN={P21DBN}&S21FMT=fullw&S21ALL=(%3C.%3EG%3D{year}$%3C.%3E)&FT_REQUEST=&FT_PREFIX=&Z21ID=&S21STN={S21STN_local}&S21REF={S21REF}&S21CNR={S21CNR}'
                 url = get_url_with_params(year_local = year, S21STN_local = S21STN_local)
-                print(f'Ітерація {iter_page}/{count_pages}, S21STN={S21STN_local}') # for test
+                print(f'Ітерація {iter_page}/{count_pages}, {S21STN_local=}') # for test
 
                 # response = requests.get(url_with_params)
                 # tree = html.fromstring(response.text)
